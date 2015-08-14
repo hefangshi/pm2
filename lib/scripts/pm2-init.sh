@@ -20,11 +20,23 @@ NAME=pm2
 PM2=%PM2_PATH%
 USER=%USER%
 
-export PATH=$PATH:%NODE_PATH%
-export HOME="%HOME_PATH%"
+export PATH=%NODE_PATH%:$PATH
+export PM2_HOME="%HOME_PATH%"
+
+get_user_shell() {
+    local shell=$(getent passwd ${1:-`whoami`} | cut -d: -f7 | sed -e 's/[[:space:]]*$//')
+
+    if [[ $shell == *"/sbin/nologin" ]] || [[ $shell == "/bin/false" ]] || [[ -z "$shell" ]];
+    then
+      shell="/bin/bash"
+    fi
+
+    echo "$shell"
+}
 
 super() {
-    sudo -Ei -u $USER PATH=$PATH $*
+    local shell=$(get_user_shell $USER)
+    su - $USER -s $shell -c "PATH=$PATH; PM2_HOME=$PM2_HOME $*"
 }
 
 start() {
@@ -71,8 +83,11 @@ case "$1" in
     reload)
         reload
         ;;
+    force-reload)
+        reload
+        ;;
     *)
-        echo "Usage: {start|stop|status|restart|reload}"
+        echo "Usage: {start|stop|status|restart|reload|force-reload}"
         exit 1
         ;;
 esac
